@@ -1,0 +1,7 @@
+name = "LaplaceApproximations"
+uuid = "7a424a9f-bf80-4fb6-a82d-c7104ddf4df1"
+authors = ["John Best <jkbest@gmail.com> and contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1"
