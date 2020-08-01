@@ -3,5 +3,10 @@ uuid = "7a424a9f-bf80-4fb6-a82d-c7104ddf4df1"
 authors = ["John Best <jkbest@gmail.com> and contributors"]
 version = "0.1.0"
 
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+StatsFuns = "4c63d2b9-4356-54db-8cca-17b64c39e42c"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
+
 [compat]
-julia = "1"
+julia = "1.2"
