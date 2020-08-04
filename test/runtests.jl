@@ -8,6 +8,7 @@ using StatsFuns
 
 include("normal-normal-test-setup.jl")
 include("logistic-normal-test-setup.jl")
+include("GPML-test.jl")
 
 ## Simulation setup
 n = 1000
@@ -27,7 +28,7 @@ y = X * β + Z * u + σobs * randn(n)
 nld = NormLLData(y, X, Z)
 nll = NormLL(β, zeros(5), 0.2, 1.0, nld)
 
-norm_la, _ = laplace_approx(nll, zeros(5); niter = 1)
+norm_la, _ = laplace_approx(nll, zeros(5))
 
 norm_qu = 0.0
 for g in 1:5
@@ -49,7 +50,7 @@ y = rand.(Bernoulli.(p))
 bld = BinomLLData(y, X, Z)
 bll = BinomLL(β, u, σgrp, bld)
 
-binom_la, _ = laplace_approx(bll, zeros(5); niter = 10)
+binom_la, _ = laplace_approx(bll, zeros(5))
 
 binom_qu = 0.0
 for g in 1:5
@@ -65,5 +66,8 @@ end
 @test isapprox(norm_qu, norm_la)
 # Expect some error for the logistic example
 @test isapprox(binom_qu, binom_la, rtol = 1e-2)
+# Make sure you get a warning when grtol not reached in maxit steps
+@test_logs (:warn, "Gradient tolerance not reached in 1 Newton steps")
+    laplace_approx(bll, zeros(5); grtol = 1e-20, maxit = 1)
 
 end
