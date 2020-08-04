@@ -8,6 +8,7 @@ using StatsFuns
 
 include("normal-normal-test-setup.jl")
 include("logistic-normal-test-setup.jl")
+include("GPML-test.jl")
 
 ## Simulation setup
 n = 1000

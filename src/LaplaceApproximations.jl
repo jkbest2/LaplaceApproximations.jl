@@ -3,7 +3,11 @@ module LaplaceApproximations
 using Zygote
 using LinearAlgebra
 
-export laplace_approx
+export 
+    laplace_approx,
+    GPML
+
+include("GPML.jl")
 
 """
     laplace_approx(nll, u; niter = 10)
