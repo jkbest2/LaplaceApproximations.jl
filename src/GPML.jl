@@ -17,6 +17,7 @@ function post_funs(datalik, Σ)
 end
 
 function normal_funs(y, σobs)
+    n = length(y)
     function f(u)
         sum(normlogpdf.(u, σobs, y))
     end
@@ -24,10 +25,13 @@ function normal_funs(y, σobs)
         @. (y - u) / σobs^2
     end
     function he(u)
-        Diagonal(-1 / σobs^2 * ones(length(u)))
+        Diagonal(-ones(n) / σobs^2)
+    end
+    function ∇³(u)
+        zeros(n) 
     end
 
-    (f = f, gr = gr, he = he)
+    (f = f, gr = gr, he = he, ∇³ = ∇³)
 end
 
 function logistic_funs(y)
@@ -126,6 +130,26 @@ function gpml_pred(xpred, datalik, uhat, xobs, Σ, covfun, sigmoidfun)
     Vpred = covfun.(xpred, xpred') - v' * v
     ppred = quadgk(z -> sigmoidfun(z) * normpdf(upred, sqrt(Vpred), z), -Inf, Inf)[1]
     ppred, upred, sqrt(Vpred)
+end
+
+function gpml_grad(covpars, covfun, datalik, u0)
+    K = covfun.f(covpars)
+    logq, uhat, a = gpml_laplace(datalik, K, u0)
+    W = -datalik.he(uhat)
+    Wsqrt = sqrt(W)
+    L = cholesky(Hermitian(I + Wsqrt * K * Wsqrt))
+    R = Wsqrt * (L \ Wsqrt)
+    C = L.L \ (Wsqrt * K)
+    s2 = -Diagonal(diag(K) - diag(C'C)) / 2 * datalik.∇³(uhat)
+    grad_covpars = similar(covpars)
+    C = covfun.gr(covpars)
+    for j in 1:length(covpars)
+        s1 = (a' * C[j] * a - tr(R * C[j])) / 2
+        b = C[j] * datalik.gr(uhat)
+        s3 = b - K * R * b
+        grad_covpars[j] = s1 + s2's3
+    end
+    logq, grad_covpars, uhat
 end
 
 end # module GPML

@@ -4,18 +4,40 @@ using Distributions
 using LinearAlgebra
 using StatsFuns
 # using Plots
+# using Optim
 
 "Matérn (ν = 3/2) correlation kernel"
-function mat32(x1, x2)
+function mat32(x1, x2, ρ = 1)
     d = norm(x1 .- x2)
-    (1 + (sqrt(3) * d)) * exp(-sqrt(3) * d)
+    _mat32(d, ρ)
 end
+function _mat32(d, ρ = 1)
+    (1 + sqrt(3) * d / ρ) * exp(-sqrt(3) * d / ρ)
+end
+function ddρ_mat32(d, σ, ρ)
+    3 * d^2 * σ^2 * exp(-sqrt(3) * d / ρ) / ρ^3
+end
+
+function mat32cov_funs(x)
+    d = norm.(x .- x')
+    function f(p)
+        p[1] * _mat32.(d, p[2])
+    end
+    function gr(p)
+        ddσ = 2 * p[1] * _mat32.(d, p[2])
+        ddρ = ddρ_mat32.(d, p[1], p[2])
+        (ddσ, ddρ)
+    end
+    (f = f, gr = gr)
+end
+
 
 n = 100
 xobs = 5rand(n)
 sort!(xobs)
 xpred = range(0, 5, length = 101)
 
+mat32cov = mat32cov_funs(xobs)
 Σ = Matrix{Float64}(undef, n, n)
 for j in 1:n, i in 1:n
     Σ[i, j] = mat32(xobs[i], xobs[j])
@@ -30,17 +52,23 @@ normy = utrue .+ σobs * randn(n)
 normdatalik = GPML.normal_funs(normy, σobs)
 normlogq, normyhat = GPML.gpml_laplace(normdatalik, Σ, zeros(n); maxit = 2)
 
-normpost = GPML.post_funs(normdatalik, Σ)
-normlogq_la, normyhat_la = laplace_approx(normpost.f, zeros(n); maxit = 10)
+# normpost = GPML.post_funs(normdatalik, Σ)
+# normlogq_la, normyhat_la = laplace_approx(normpost.f, zeros(n); maxit = 10)
 
-normlogq_la - normlogq
-isapprox(normuhat_la, normyhat)
+# normlogq_la - normlogq
+# isapprox(normuhat_la, normyhat, normdatalik, zeros(n))
 
 # plot(xpred, getindex.(normpreds, 2))
 # scatter!(xobs, normy)
 # scatter!(xobs, yobs)
 
+GPML.gpml_grad([1.0, 1.0], mat32cov, normdatalik, zeros(n))
 
+# normval(covpar) = GPML.gpml_grad(covpar, mat32cov, normdatalik, zeros(n))[1]
+# normgr(G, covpar) = G .= GPML.gpml_grad(covpar, mat32cov, normdatalik, zeros(n))[2]
+# Not currently working; end up with non-PD B matrix at some point
+# maximize(normval, normgr, ones(2), ConjugateGradient())
+# maximize(normval, ones(2))
 
 # Logistic example
 pobs = logistic.(utrue)
@@ -52,11 +80,16 @@ lpreds = map(xpred) do x
 end
 
 # plot(xpred, getindex.(lpreds, 2))
-# scatter!(xobs, utrue)
+# plot!(xobs, utrue)
 # scatter!(xobs, yobs)
+# plot!(xpred, getindex.(lpreds, 1))
 
-# plot(xpred, getindex.(lpreds, 1))
-# scatter!(xobs, yobs)
+# lres = maximize(p -> GPML.gpml_laplace(
+#     ldatalik,
+#     p[1]^2 * mat32.(xobs, xobs', p[2]),
+#     ones(n))[1], ones(2))
+# lcovpars = Optim.maximizer(lres)
+# lq, luhat = GPML.gpml_laplace(ldatalik, lcovpars[1] * mat32.(xobs, xobs', covpars[2]), ones(n))
 
 # Probit example
 pyobs = @. rand(Bernoulli(normcdf(utrue)))
